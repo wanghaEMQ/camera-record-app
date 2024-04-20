@@ -33,6 +33,7 @@
 *********************************************************************/
 #include <stdio.h>
 #include <opencv2/highgui/highgui_c.h>
+#include <opencv2/videoio/videoio_c.h>
 
 #include "libuvc/libuvc.h"
 
@@ -41,7 +42,7 @@ void cb(uvc_frame_t *frame, void *ptr) {
   uvc_error_t ret;
   IplImage* cvImg;
 
-  printf("callback! length = %u, ptr = %d\n", frame->data_bytes, (int) ptr);
+  // printf("callback! length = %u, ptr = %d\n", frame->data_bytes, (int) ptr);
 
   bgr = uvc_allocate_frame(frame->width * frame->height * 3);
   if (!bgr) {
@@ -61,11 +62,24 @@ void cb(uvc_frame_t *frame, void *ptr) {
       IPL_DEPTH_8U,
       3);
 
-  cvSetData(cvImg, bgr->data, bgr->width * 3); 
+  cvSetData(cvImg, bgr->data, bgr->width * 3);
 
+  if (wr == NULL) {
+    //wr = cvCreateVideoWriter("test.mp4", CV_FOURCC_DEFAULT,
+    wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('M','J','P','G'),
+    //wr = cvCreateVideoWriter("test1.avi", CV_FOURCC('X','V','I','D'),
+      25, cvSize(bgr->width, bgr->height), true);
+	if (!wr)
+		printf("Error in create cv video writer.\n");
+  }
+  cvWriteFrame(wr, cvImg);
+
+  /*
+   * For Debug
   cvNamedWindow("Test", CV_WINDOW_AUTOSIZE);
   cvShowImage("Test", cvImg);
   cvWaitKey(10);
+  */
 
   cvReleaseImageHeader(&cvImg);
 
@@ -121,20 +135,26 @@ int main(int argc, char **argv) {
           uvc_perror(res, "start_streaming");
         } else {
           puts("Streaming for 10 seconds...");
-          uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 1);
+          //uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 1);
+          uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 8);
           uvc_perror(resAEMODE, "set_ae_mode");
           int i;
+          /* 
           for (i = 1; i <= 10; i++) {
-            /* uvc_error_t resPT = uvc_set_pantilt_abs(devh, i * 20 * 3600, 0); */
-            /* uvc_perror(resPT, "set_pt_abs"); */
-            uvc_error_t resEXP = uvc_set_exposure_abs(devh, 20 + i * 5);
+            uvc_error_t resPT = uvc_set_pantilt_abs(devh, i * 20 * 3600, 0);
+            uvc_perror(resPT, "set_pt_abs");
+            uvc_error_t resEXP = uvc_set_exposure_abs(devh, 20 + i * 50);
             uvc_perror(resEXP, "set_exp_abs");
-            
+
             sleep(1);
           }
-          sleep(10);
+		  */
+          sleep(120);
           uvc_stop_streaming(devh);
-	  puts("Done streaming.");
+		  if (wr) {
+			  cvReleaseVideoWriter(&wr);
+		  }
+          puts("Done streaming.");
         }
       }
 
