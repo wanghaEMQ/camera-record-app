@@ -37,6 +37,46 @@
 
 #include "libuvc/libuvc.h"
 
+CvVideoWriter *wr = NULL;
+int preview_req_cnt = 0;
+
+const char *preview_path = "/home/wangha/Documents/git/camera-goweb-app/images/preview.jpg";
+
+void
+writepreview(uvc_frame_t *frame) {
+  FILE *fp;
+  switch (frame->frame_format) {
+  case UVC_FRAME_FORMAT_H264:
+    printf("IOS Format photo, not supported\n");
+    /* use `ffplay H264_FILE` to play */
+    /* fp = fopen(H264_FILE, "a");
+     * fwrite(frame->data, 1, frame->data_bytes, fp);
+     * fclose(fp); */
+    break;
+  case UVC_COLOR_FORMAT_MJPEG:
+    fp = fopen(preview_path, "w");
+    fwrite(frame->data, 1, frame->data_bytes, fp);
+    fclose(fp);
+    break;
+  case UVC_COLOR_FORMAT_YUYV:
+    /* Do the BGR conversion */
+    printf("YUYV Format photo, not supported\n");
+	break;
+	/*
+    ret = uvc_any2bgr(frame, bgr);
+    if (ret) {
+      uvc_perror(ret, "uvc_any2bgr");
+      uvc_free_frame(bgr);
+      return;
+    }
+    break;
+	*/
+  default:
+    printf("Unknown Format photo, not supported\n");
+    break;
+  }
+}
+
 void cb(uvc_frame_t *frame, void *ptr) {
   uvc_frame_t *bgr;
   uvc_error_t ret;
@@ -49,6 +89,9 @@ void cb(uvc_frame_t *frame, void *ptr) {
     printf("unable to allocate bgr frame!");
     return;
   }
+
+  if (preview_req_cnt > 0)
+    writepreview(frame);
 
   ret = uvc_any2bgr(frame, bgr);
   if (ret) {
