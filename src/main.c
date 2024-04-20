@@ -13,11 +13,16 @@
 CvVideoWriter *wr = NULL;
 int preview_req_cnt = 0;
 
+#define START_RECORD "start-record"
+#define STOP_RECORD "start-record"
+#define PREVIEW "preview"
+
 nng_socket *ipcsock = NULL;
 const char *ipc_url = "/tmp/camerarecord.ipc";
 const char *preview_path = "/home/wangha/Documents/git/camera-goweb-app/images/preview.jpg";
 
 pthread_t *preview_thr;
+int g_camera_running = 0;
 
 void
 writepreview(uvc_frame_t *frame) {
@@ -109,10 +114,38 @@ void cb(uvc_frame_t *frame, void *ptr) {
 }
 
 void*
-preview_req_cnt_cb(void *arg){
+ipc_cb(void *arg){
 	(void*)arg;
-	if (preview_req_cnt < 3)
-		preview_req_cnt ++;
+	while (1) {
+		nng_msg *msg;
+		nng_recvmsg(*ipcsock, &msg, 0);
+		if (msg == NULL) {
+			continue;
+		}
+		char *pld = nng_msg_body(msg);
+		if (strlen(pld) == strlen(START_RECORD) &&
+			strcmp(pld, START_RECORD) == 0) {
+			g_camera_running = 1;
+			goto next;
+		}
+		else if (strlen(pld) == strlen(STOP_RECORD) &&
+			strcmp(pld, STOP_RECORD) == 0) {
+			g_camera_running = 0;
+			goto next;
+		}
+		else if (strlen(pld) == strlen(STOP_RECORD) &&
+			strcmp(pld, STOP_RECORD) == 0) {
+			if (preview_req_cnt < 3)
+				preview_req_cnt ++;
+			goto next;
+		}
+		else {
+			printf("unknown cmd\n");
+			goto next;
+		}
+next:
+		nng_msg_free(msg);
+	}
 	return NULL;
 }
 
@@ -126,7 +159,7 @@ start_nng(nng_socket *sock, pthread_t *thr) {
 		printf("error listen %dnng\n", rv);
 		return;
 	}
-	pthread_create(thr, NULL, preview_req_cnt_cb, NULL);
+	pthread_create(thr, NULL, ipc_cb, NULL);
 
 	printf("end nng\n");
 }
