@@ -16,23 +16,6 @@ if (NOT CMAKE_CONFIGURATION_TYPES)
   endif()
 endif()
 
-option(BUILD_TEST "Build test program" OFF)
-option(ENABLE_UVC_DEBUGGING "Enable UVC debugging" OFF)
-
-set(libuvc_DESCRIPTION "A cross-platform library for USB video devices")
-set(libuvc_URL "https://github.com/libuvc/libuvc")
-
-set(SOURCES 
-  src/ctrl.c
-  src/ctrl-gen.c
-  src/device.c
-  src/diag.c
-  src/frame.c
-  src/init.c
-  src/stream.c
-  src/misc.c
-)
-
 find_package(LibUSB)
 find_package(LibUVC)
 
@@ -41,7 +24,6 @@ find_package(JpegPkg QUIET)
 if(JPEG_FOUND)
   message(STATUS "Building libuvc with JPEG support.")
   set(LIBUVC_HAS_JPEG TRUE)
-  list(APPEND SOURCES src/frame-mjpeg.c)
 else()
   message(WARNING "JPEG not found. libuvc will not support JPEG decoding.")
 endif()
