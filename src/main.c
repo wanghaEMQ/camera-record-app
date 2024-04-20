@@ -90,8 +90,10 @@ void cb(uvc_frame_t *frame, void *ptr) {
     return;
   }
 
-  if (preview_req_cnt > 0)
+  if (preview_req_cnt > 0) {
     writepreview(frame);
+    preview_req_cnt --;
+  }
 
   ret = uvc_any2bgr(frame, bgr);
   if (ret) {
