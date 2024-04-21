@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/videoio/videoio_c.h>
+#include <opencv2/imgcodecs/imgcodecs_c.h>
 
 #include <nng/nng.h>
 #include <nng/protocol/pipeline0/pull.h>
@@ -36,6 +37,14 @@ writepreview2(IplImage *cvImg) {
 void
 writepreview(uvc_frame_t *frame) {
   FILE *fp;
+
+  uvc_frame_t *bgr = NULL;
+  bgr = uvc_allocate_frame(frame->width * frame->height * 3);
+  if (!bgr) {
+    printf("unable to allocate bgr frame!\n");
+    return;
+  }
+
   switch (frame->frame_format) {
   case UVC_FRAME_FORMAT_H264:
     printf("IOS Format photo, not supported\n");
@@ -52,6 +61,11 @@ writepreview(uvc_frame_t *frame) {
   case UVC_COLOR_FORMAT_YUYV:
     /* Do the BGR conversion */
     printf("YUYV Format photo, not supported\n");
+	//uvc_any2bgr(frame, bgr);
+    fp = fopen(preview_path, "w");
+    //fwrite(bgr->data, 1, bgr->data_bytes, fp);
+    fwrite(frame->data, 1, frame->data_bytes, fp);
+    fclose(fp);
 	break;
 	/*
     ret = uvc_any2bgr(frame, bgr);
@@ -66,12 +80,15 @@ writepreview(uvc_frame_t *frame) {
     printf("Unknown Format photo, not supported\n");
     break;
   }
+  if (bgr)
+    uvc_free_frame(bgr);
 }
 
 void cb(uvc_frame_t *frame, void *ptr) {
   uvc_frame_t *bgr;
   uvc_error_t ret;
   IplImage* cvImg;
+  IplImage* cvImg2;
 
   // printf("callback! length = %u, ptr = %d\n", frame->data_bytes, (int) ptr);
 
@@ -81,12 +98,15 @@ void cb(uvc_frame_t *frame, void *ptr) {
     return;
   }
 
+  // save preview
   if (preview_req_cnt > 0) {
     writepreview(frame);
     preview_req_cnt --;
   }
 
-  ret = uvc_any2bgr(frame, bgr);
+  //ret = uvc_any2bgr(frame, bgr);
+  ret = uvc_mjpeg2rgb(frame, bgr);
+  // ret = uvc_any2rgb(frame, bgr);
   if (ret) {
     uvc_perror(ret, "uvc_any2bgr");
     uvc_free_frame(bgr);
@@ -97,28 +117,41 @@ void cb(uvc_frame_t *frame, void *ptr) {
       cvSize(bgr->width, bgr->height),
       IPL_DEPTH_8U,
       3);
+  cvSetData(cvImg, bgr->data, bgr->width * 3); // rgb
 
-  cvSetData(cvImg, bgr->data, bgr->width * 3);
+  cvImg2 = cvCreateImageHeader(
+      cvSize(bgr->width, bgr->height),
+      IPL_DEPTH_8U,
+      3);
+  void *data2 = nng_alloc(sizeof(char) * bgr->height * bgr->width * 3);
+  cvSetData(cvImg2, data2, bgr->width * 3);
+
+  cvConvertImage(cvImg, cvImg2, CV_CVTIMG_SWAP_RB); // bgr
 
   if (wr == NULL) {
     //wr = cvCreateVideoWriter("test.mp4", CV_FOURCC_DEFAULT,
+    //wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('x','v','i','d'),
     wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('M','J','P','G'),
-    //wr = cvCreateVideoWriter("test1.avi", CV_FOURCC('X','V','I','D'),
+    //wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('M','J','P','G'),
+    //wr = cvCreateVideoWriter("test1.avi", CV_FOURCC('x','v','i','d'),
       25, cvSize(bgr->width, bgr->height), true);
+    //  25, cvSize(frame->width, frame->height), true);
 	if (!wr)
 		printf("Error in create cv video writer.\n");
   }
-  cvWriteFrame(wr, cvImg);
+  cvWriteFrame(wr, cvImg2);
 
   /* debug
   cvNamedWindow("Test", CV_WINDOW_AUTOSIZE);
-  cvShowImage("Test", cvImg);
+  cvShowImage("Test", cvImg2);
   cvWaitKey(10);
   */
 
   cvReleaseImageHeader(&cvImg);
+  cvReleaseImageHeader(&cvImg2);
 
   uvc_free_frame(bgr);
+  nng_free(data2, 0);
 }
 
 void*
@@ -216,7 +249,8 @@ int main(int argc, char **argv) {
       uvc_print_diag(devh, stderr);
 
       res = uvc_get_stream_ctrl_format_size(
-          devh, &ctrl, UVC_FRAME_FORMAT_YUYV, 640, 480, 30
+          //devh, &ctrl, UVC_FRAME_FORMAT_YUYV, 640, 480, 30
+          devh, &ctrl, UVC_FRAME_FORMAT_MJPEG, 640, 480, 30
       );
 
       uvc_print_stream_ctrl(&ctrl, stderr);
