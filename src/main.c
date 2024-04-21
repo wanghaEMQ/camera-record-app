@@ -30,11 +30,6 @@ int g_camera_running = 0;
 int g_camera_next = NEXT_STOP; // 0->stop 1->start
 
 void
-writepreview2(IplImage *cvImg) {
-	//cvSaveImage(preview_path, cvImg, CV_CODEC);
-}
-
-void
 writepreview(uvc_frame_t *frame) {
   FILE *fp;
 
@@ -89,8 +84,6 @@ void cb(uvc_frame_t *frame, void *ptr) {
   uvc_error_t ret;
   IplImage* cvImg;
   IplImage* cvImg2;
-
-  // printf("callback! length = %u, ptr = %d\n", frame->data_bytes, (int) ptr);
 
   bgr = uvc_allocate_frame(frame->width * frame->height * 3);
   if (!bgr) {
