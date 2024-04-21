@@ -17,12 +17,21 @@ int preview_req_cnt = 0;
 #define STOP_RECORD "stop-record"
 #define PREVIEW "preview"
 
+#define NEXT_STOP 0
+#define NEXT_START 1
+
 nng_socket *ipcsock = NULL;
 const char *ipc_url = "/tmp/camerarecord.ipc";
 const char *preview_path = "/home/wangha/Documents/git/camera-goweb-app/images/preview.jpg";
 
 pthread_t *preview_thr;
 int g_camera_running = 0;
+int g_camera_next = NEXT_STOP; // 0->stop 1->start
+
+void
+writepreview2(IplImage *cvImg) {
+	//cvSaveImage(preview_path, cvImg, CV_CODEC);
+}
 
 void
 writepreview(uvc_frame_t *frame) {
@@ -101,8 +110,7 @@ void cb(uvc_frame_t *frame, void *ptr) {
   }
   cvWriteFrame(wr, cvImg);
 
-  /*
-   * For Debug
+  /* debug
   cvNamedWindow("Test", CV_WINDOW_AUTOSIZE);
   cvShowImage("Test", cvImg);
   cvWaitKey(10);
@@ -119,22 +127,26 @@ ipc_cb(void *arg){
 	while (1) {
 		nng_msg *msg;
 		nng_recvmsg(*ipcsock, &msg, 0);
+		printf("get a msg\n");
 		if (msg == NULL) {
 			continue;
 		}
 		char *pld = nng_msg_body(msg);
 		if (strlen(pld) == strlen(START_RECORD) &&
 			strcmp(pld, START_RECORD) == 0) {
-			g_camera_running = 1;
+		printf("start record\n");
+			g_camera_next = NEXT_START;
 			goto next;
 		}
 		else if (strlen(pld) == strlen(STOP_RECORD) &&
 			strcmp(pld, STOP_RECORD) == 0) {
-			g_camera_running = 0;
+		printf("stop record\n");
+			g_camera_next = NEXT_STOP;
 			goto next;
 		}
-		else if (strlen(pld) == strlen(STOP_RECORD) &&
-			strcmp(pld, STOP_RECORD) == 0) {
+		else if (strlen(pld) == strlen(PREVIEW) &&
+			strcmp(pld, PREVIEW) == 0) {
+		printf("preview \n");
 			if (preview_req_cnt < 3)
 				preview_req_cnt ++;
 			goto next;
@@ -156,7 +168,7 @@ start_nng(nng_socket *sock, pthread_t *thr) {
 	nng_pull0_open(sock);
 	rv = nng_listen(*sock, ipc_url, NULL, 0);
 	if (rv != 0) {
-		printf("error listen %dnng\n", rv);
+		printf("error listen %d %s\n", rv, nng_strerror(rv));
 		return;
 	}
 	pthread_create(thr, NULL, ipc_cb, NULL);
@@ -212,17 +224,26 @@ int main(int argc, char **argv) {
       if (res < 0) {
         uvc_perror(res, "get_mode");
       } else {
-        res = uvc_start_streaming(devh, &ctrl, cb, 12345, 0);
-
-        if (res < 0) {
-          uvc_perror(res, "start_streaming");
-        } else {
-          puts("Streaming for 10 seconds...");
-          //uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 1);
-          uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 8);
-          uvc_perror(resAEMODE, "set_ae_mode");
-          int i;
+        while (1) {
+          sleep(1); //TODO
+          if (g_camera_next == NEXT_START && g_camera_running == 1) {
+    		printf("-");
+            continue;
+          } else if (g_camera_next == NEXT_STOP && g_camera_running == 0) {
+            continue;
+          } else if (g_camera_next == NEXT_START && g_camera_running == 0) {
+            // enable
+			g_camera_running = 1;
+            res = uvc_start_streaming(devh, &ctrl, cb, 12345, 0);
+            if (res < 0) {
+              uvc_perror(res, "start_streaming");
+            } else {
+              puts("Start Streaming");
+              //uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 1);
+              uvc_error_t resAEMODE = uvc_set_ae_mode(devh, 8);
+              uvc_perror(resAEMODE, "set_ae_mode");
           /* 
+          int i;
           for (i = 1; i <= 10; i++) {
             uvc_error_t resPT = uvc_set_pantilt_abs(devh, i * 20 * 3600, 0);
             uvc_perror(resPT, "set_pt_abs");
@@ -232,12 +253,17 @@ int main(int argc, char **argv) {
             sleep(1);
           }
 		  */
-          sleep(120);
-          uvc_stop_streaming(devh);
-		  if (wr) {
+          //sleep(120);
+			}
+          } else if (g_camera_next == NEXT_STOP && g_camera_running == 1) {
+			g_camera_running = 0;
+            uvc_stop_streaming(devh);
+			if (wr) {
 			  cvReleaseVideoWriter(&wr);
-		  }
-          puts("Done streaming.");
+			  wr = NULL;
+			}
+            puts("Done streaming.");
+          }
         }
       }
 
