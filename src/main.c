@@ -22,7 +22,7 @@ int preview_req_cnt = 0;
 #define NEXT_START 1
 
 nng_socket *ipcsock = NULL;
-const char *ipc_url = "/tmp/camerarecord.ipc";
+const char *ipc_url = "ipc:///tmp/camerarecord.ipc";
 const char *preview_path = "/home/wangha/Documents/git/camera-goweb-app/images/preview.jpg";
 
 pthread_t *preview_thr;
