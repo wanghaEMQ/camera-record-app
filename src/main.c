@@ -14,7 +14,7 @@ CvVideoWriter *wr = NULL;
 int preview_req_cnt = 0;
 
 #define START_RECORD "start-record"
-#define STOP_RECORD "start-record"
+#define STOP_RECORD "stop-record"
 #define PREVIEW "preview"
 
 nng_socket *ipcsock = NULL;
