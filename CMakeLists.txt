@@ -19,6 +19,8 @@ endif()
 find_package(LibUSB)
 find_package(LibUVC)
 
+find_package(libnng)
+
 # JpegPkg name to differ from shipped with CMake
 find_package(JpegPkg QUIET)
 if(JPEG_FOUND)
@@ -49,5 +51,6 @@ target_link_libraries(camerarecord
     uvc
     opencv_core
     opencv_highgui
+	nng
 )
 
