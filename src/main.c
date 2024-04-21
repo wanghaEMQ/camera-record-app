@@ -23,7 +23,11 @@ int preview_req_cnt = 0;
 
 nng_socket *ipcsock = NULL;
 const char *ipc_url = "ipc:///tmp/camerarecord.ipc";
-const char *preview_path = "/home/wangha/Documents/git/camera-goweb-app/images/preview.jpg";
+const char *preview_dir = "/home/wangha/Documents/git/camera-goweb-app/images/";
+const char *preview_prefix = "preview";
+const char *preview_ext = "jpg";
+int         preview_idx = 0;
+const int   preview_cap = 20;
 
 pthread_t *preview_thr;
 int g_camera_running = 0;
@@ -39,6 +43,11 @@ writepreview(uvc_frame_t *frame) {
     printf("unable to allocate bgr frame!\n");
     return;
   }
+  char preview_fname[128];
+  sprintf(preview_fname, "%s%s%d.%s", preview_dir,
+		      preview_prefix, preview_idx, preview_ext);
+  printf("write to %s\n", preview_fname);
+  preview_idx = (preview_idx+1) % preview_cap;
 
   switch (frame->frame_format) {
   case UVC_FRAME_FORMAT_H264:
@@ -49,7 +58,7 @@ writepreview(uvc_frame_t *frame) {
      * fclose(fp); */
     break;
   case UVC_COLOR_FORMAT_MJPEG:
-    fp = fopen(preview_path, "w");
+    fp = fopen(preview_fname, "w");
     fwrite(frame->data, 1, frame->data_bytes, fp);
     fclose(fp);
     break;
@@ -57,7 +66,7 @@ writepreview(uvc_frame_t *frame) {
     /* Do the BGR conversion */
     printf("YUYV Format photo, not supported\n");
 	//uvc_any2bgr(frame, bgr);
-    fp = fopen(preview_path, "w");
+    fp = fopen(preview_fname, "w");
     //fwrite(bgr->data, 1, bgr->data_bytes, fp);
     fwrite(frame->data, 1, frame->data_bytes, fp);
     fclose(fp);
@@ -183,7 +192,7 @@ ipc_cb(void *arg){
 		else if (strlen(pld) == strlen(PREVIEW) &&
 			strcmp(pld, PREVIEW) == 0) {
 		printf("preview \n");
-			if (preview_req_cnt < 3)
+			if (preview_req_cnt < preview_cap)
 				preview_req_cnt ++;
 			goto next;
 		}
