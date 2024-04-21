@@ -98,28 +98,46 @@ void cb(uvc_frame_t *frame, void *ptr) {
   }
 
   //ret = uvc_any2bgr(frame, bgr);
-  ret = uvc_mjpeg2rgb(frame, bgr);
   // ret = uvc_any2rgb(frame, bgr);
+  //ret = uvc_mjpeg2rgb(frame, bgr);
+  ret = uvc_mjpeg2bgr(frame, bgr);
   if (ret) {
     uvc_perror(ret, "uvc_any2bgr");
     uvc_free_frame(bgr);
     return;
   }
 
-  cvImg = cvCreateImageHeader(
-      cvSize(bgr->width, bgr->height),
-      IPL_DEPTH_8U,
-      3);
-  cvSetData(cvImg, bgr->data, bgr->width * 3); // rgb
+  cvImg = cvCreateImageHeader(cvSize(bgr->width, bgr->height), IPL_DEPTH_8U, 3);
+  cvSetData(cvImg, bgr->data, bgr->width * 3);
 
-  cvImg2 = cvCreateImageHeader(
-      cvSize(bgr->width, bgr->height),
-      IPL_DEPTH_8U,
-      3);
+  // Write to disk
+  if (wr == NULL) {
+    //wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('x','v','i','d'),
+    wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('M','J','P','G'),
+      25, cvSize(bgr->width, bgr->height), true);
+    //wr = cvCreateVideoWriter("/tmp/test1.avi", CV_FOURCC('M','J','P','G'),
+    //wr = cvCreateVideoWriter("test1.avi", CV_FOURCC('x','v','i','d'),
+	if (!wr)
+		printf("Error in create cv video writer.\n");
+  }
+  cvWriteFrame(wr, cvImg);
+
+  /* debug
+  cvNamedWindow("Test", CV_WINDOW_AUTOSIZE);
+  cvShowImage("Test", cvImg);
+  cvWaitKey(10);
+  */
+
+  // free
+  cvReleaseImageHeader(&cvImg);
+  uvc_free_frame(bgr);
+
+  /*
+  cvImg2 = cvCreateImageHeader(cvSize(bgr->width, bgr->height), IPL_DEPTH_8U, 3);
   void *data2 = nng_alloc(sizeof(char) * bgr->height * bgr->width * 3);
   cvSetData(cvImg2, data2, bgr->width * 3);
 
-  cvConvertImage(cvImg, cvImg2, CV_CVTIMG_SWAP_RB); // bgr
+  cvConvertImage(cvImg, cvImg2, CV_CVTIMG_SWAP_RB); // rgb -> bgr
 
   if (wr == NULL) {
     //wr = cvCreateVideoWriter("test.mp4", CV_FOURCC_DEFAULT,
@@ -133,18 +151,10 @@ void cb(uvc_frame_t *frame, void *ptr) {
 		printf("Error in create cv video writer.\n");
   }
   cvWriteFrame(wr, cvImg2);
-
-  /* debug
-  cvNamedWindow("Test", CV_WINDOW_AUTOSIZE);
-  cvShowImage("Test", cvImg2);
-  cvWaitKey(10);
   */
 
-  cvReleaseImageHeader(&cvImg);
-  cvReleaseImageHeader(&cvImg2);
-
-  uvc_free_frame(bgr);
-  nng_free(data2, 0);
+  //cvReleaseImageHeader(&cvImg2);
+  //nng_free(data2, 0);
 }
 
 void*
