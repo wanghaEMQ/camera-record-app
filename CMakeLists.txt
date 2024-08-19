@@ -33,8 +33,10 @@ find_package(OpenCVPkg REQUIRED
     opencv_highgui
 )
 
+#SET(CMAKE_C_FLAGS "-g -fsanitize=address")
+#SET(CMAKE_CXX_FLAGS "-g -fsanitize=address")
 SET(CMAKE_C_FLAGS "-g -fsanitize=address")
-SET(CMAKE_CXX_FLAGS "-g -fsanitize=address")
+SET(CMAKE_CXX_FLAGS "-g -pthread")
 
 add_executable(camerarecord src/main.cpp)
 target_link_libraries(camerarecord
