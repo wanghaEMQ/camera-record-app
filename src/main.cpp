@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <iostream> 
+#include <iostream>
 
 #include <opencv2/core.hpp>
 #include <opencv2/videoio.hpp>
@@ -143,6 +143,7 @@ start_nng(nng_socket *sock, pthread_t *thr) {
 		printf("[nng] error listen %d %s\n", rv, nng_strerror(rv));
 		return;
 	}
+	ipcsock = sock;
 	rv = pthread_create(thr, NULL, ipc_cb, NULL);
 	if (rv != 0) {
 		printf("[nng] error create thread %d\n", rv);
@@ -184,7 +185,6 @@ int main(int, char**)
 	pthread_t cv_thr;
 	nng_socket *sock = (nng_socket *)nng_alloc(sizeof(nng_socket));
 	start_nng(sock, &ipc_thr);
-	ipcsock = sock;
 
 	while (1) {
 		sleep(1); // TODO
