@@ -73,9 +73,19 @@ next:
 	return NULL;
 }
 
+void
+update_preview_name(char *preview_fname)
+{
+	sprintf(preview_fname, "%s%s%d.%s", preview_dir,
+			preview_prefix, preview_idx, preview_ext);
+	printf("[preview] write to %s\n", preview_fname);
+	preview_idx = (preview_idx+1) % preview_cap;
+}
+
 void*
 cv_cb(void *arg){
 	(void*)arg;
+	char preview_fname[128];
 	Mat src;
 	// use default camera as video source
 	VideoCapture cap(0);
@@ -120,10 +130,13 @@ cv_cb(void *arg){
 		}
 		// encode the frame into the videofile stream
 		writer.write(src);
+		if (preview_req_cnt > 0) {
+			update_preview_name(preview_fname);
+			imwrite(preview_fname, src);
+			preview_req_cnt --;
+		}
 		// show live and wait for a key with timeout long enough to show images
-		/*
-		imshow("Live", src);
-		*/
+		// imshow("Live", src);
 	}
 	// the videofile will be closed and released automatically in VideoWriter destructor
 	return NULL;
