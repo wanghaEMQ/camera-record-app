@@ -167,6 +167,7 @@ http_handle(nng_aio *aio)
 	printf("R> (%ld)%.*s\n", sz, (int)sz, (char*)data);
 
 	size_t preview_sz;
+	char   pszstr[100];
 	// Reply to the client
 	nng_mtx_lock(http_mtx);
 	if (g_http_preview.total() > 0 &&
@@ -174,6 +175,9 @@ http_handle(nng_aio *aio)
 		imwrite("./test.jpg", g_http_preview);
 		preview_sz = readfile("./test.jpg", preview_buf);
 		rv = nng_http_res_copy_data(job->http_res, preview_buf, preview_sz);
+		sprintf(pszstr, "%ld", preview_sz);
+		nng_http_res_set_header(job->http_res, "Content-type", "image/jpeg");
+		nng_http_res_set_header(job->http_res, "Content-length", pszstr);
 	}
 	nng_mtx_unlock(http_mtx);
 	if (rv != 0) {
