@@ -163,7 +163,7 @@ http_handle(nng_aio *aio)
 
 	nng_http_req_get_data(req, &data, &sz);
 	job->http_aio = aio;
-	printf("R> (%ld)%.*s\n", sz, (int)sz, (char*)data);
+	//printf("R> (%ld)%.*s\n", sz, (int)sz, (char*)data);
 
 	if (0 == strcmp((char *)data, START_RECORD)) {
 		g_camera_next = NEXT_START;
@@ -200,7 +200,7 @@ http_handle(nng_aio *aio)
 	// user agent with a 200 response.
 	nng_aio_set_output(job->http_aio, 0, job->http_res);
 	nng_aio_finish(job->http_aio, 0);
-	printf("S> (%ld)%.*s\n", sz, (int)sz, (char*)data);
+	//printf("S> (%ld)%.*s\n", sz, (int)sz, (char*)data);
 	return;
 }
 
