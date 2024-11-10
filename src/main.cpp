@@ -36,7 +36,8 @@ using namespace std;
 
 nng_mtx    *http_mtx;
 Mat         g_http_preview;
-char        preview_buf[1024*1024];
+
+std::vector<uchar> preview_buf;
 
 typedef struct rest_job {
 	nng_aio *        http_aio; // aio from HTTP we must reply to
@@ -178,12 +179,12 @@ http_handle(nng_aio *aio)
 	char   pszstr[100];
 	// Reply to the client
 	nng_mtx_lock(http_mtx);
-	if (g_http_preview.total() > 0 &&
-	    0 == strcmp((char *)data, "preview")) {
-		imwrite("./test.jpg", g_http_preview);
-		preview_sz = readfile("./test.jpg", preview_buf);
-		rv = nng_http_res_copy_data(job->http_res, preview_buf, preview_sz);
-		sprintf(pszstr, "%ld", preview_sz);
+	if (g_camera_running == 1
+	    && g_http_preview.total() > 0
+	    && 0 == strcmp((char *)data, PREVIEW)) {
+		bool imrv = imencode(".jpg", g_http_preview, preview_buf);
+		rv = nng_http_res_copy_data(job->http_res, (char *)preview_buf.data(), preview_buf.size());
+		sprintf(pszstr, "%ld", preview_buf.size());
 		nng_http_res_set_header(job->http_res, "Content-type", "image/jpeg");
 		nng_http_res_set_header(job->http_res, "Content-length", pszstr);
 	}
