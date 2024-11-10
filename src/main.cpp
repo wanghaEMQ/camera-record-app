@@ -15,14 +15,12 @@
 #include "pthread.h"
 
 #define START_RECORD "start-record"
-#define STOP_RECORD "stop-record"
-#define PREVIEW "preview"
+#define STOP_RECORD  "stop-record"
+#define PREVIEW      "preview"
 
 #define NEXT_STOP 0
 #define NEXT_START 1
 
-nng_socket *ipcsock = NULL;
-const char *ipc_url = "ipc:///tmp/camerarecord.ipc";
 const char *preview_dir = "/home/wangha/Documents/git/camera-goweb-app/images/";
 const char *preview_prefix = "preview";
 const char *preview_ext = "jpg";
@@ -166,6 +164,16 @@ http_handle(nng_aio *aio)
 	job->http_aio = aio;
 	printf("R> (%ld)%.*s\n", sz, (int)sz, (char*)data);
 
+	if (0 == strcmp((char *)data, START_RECORD)) {
+		g_camera_next = NEXT_START;
+		rv = nng_http_res_copy_data(job->http_res, START_RECORD, strlen(START_RECORD));
+		printf("[record] start %d\n", rv);
+	} else if (0 == strcmp((char *)data, STOP_RECORD)) {
+		g_camera_next = NEXT_STOP;
+		rv = nng_http_res_copy_data(job->http_res, STOP_RECORD, strlen(STOP_RECORD));
+		printf("[record] stop %d\n", rv);
+	}
+
 	size_t preview_sz;
 	char   pszstr[100];
 	// Reply to the client
@@ -180,6 +188,7 @@ http_handle(nng_aio *aio)
 		nng_http_res_set_header(job->http_res, "Content-length", pszstr);
 	}
 	nng_mtx_unlock(http_mtx);
+
 	if (rv != 0) {
 		fatal("nng_http_res_copy_data", rv);
 		rest_recycle_job(job);
@@ -243,46 +252,6 @@ start_http(const char *urlstr)
 	nng_url_free(url);
 	printf("[http] end\n");
 	return 0;
-}
-
-
-void*
-ipc_cb(void *arg){
-	(void*)arg;
-	while (1) {
-		nng_msg *msg;
-		nng_recvmsg(*ipcsock, &msg, 0);
-		if (msg == NULL) {
-			continue;
-		}
-		char *pld = (char *)nng_msg_body(msg);
-		if (strlen(pld) == strlen(START_RECORD) &&
-			strcmp(pld, START_RECORD) == 0) {
-		printf("[record] start\n");
-			g_camera_next = NEXT_START;
-			goto next;
-		}
-		else if (strlen(pld) == strlen(STOP_RECORD) &&
-			strcmp(pld, STOP_RECORD) == 0) {
-		printf("[record] stop\n");
-			g_camera_next = NEXT_STOP;
-			goto next;
-		}
-		else if (strlen(pld) == strlen(PREVIEW) &&
-			strcmp(pld, PREVIEW) == 0) {
-		printf("[preview] once\n");
-			if (preview_req_cnt < preview_cap)
-				preview_req_cnt ++;
-			goto next;
-		}
-		else {
-			printf("unknown cmd\n");
-			goto next;
-		}
-next:
-		nng_msg_free(msg);
-	}
-	return NULL;
 }
 
 void
@@ -359,30 +328,6 @@ cv_cb(void *arg){
 }
 
 void
-start_nng(nng_socket *sock, pthread_t *thr) {
-	printf("[nng] start\n");
-	int rv;
-	rv = nng_pull0_open(sock);
-	if (rv != 0) {
-		printf("[nng] error open pull0 %d %s\n", rv, nng_strerror(rv));
-		return;
-	}
-	rv = nng_listen(*sock, ipc_url, NULL, 0);
-	if (rv != 0) {
-		printf("[nng] error listen %d %s\n", rv, nng_strerror(rv));
-		return;
-	}
-	ipcsock = sock;
-	rv = pthread_create(thr, NULL, ipc_cb, NULL);
-	if (rv != 0) {
-		printf("[nng] error create thread %d\n", rv);
-		return;
-	}
-
-	printf("[nng] end\n");
-}
-
-void
 start_cv(pthread_t *cv_thr)
 {
 	int rv;
@@ -412,10 +357,9 @@ int main(int, char**argv)
 	int       rv;
 	pthread_t ipc_thr;
 	pthread_t cv_thr;
-	nng_socket *sock = (nng_socket *)nng_alloc(sizeof(nng_socket));
-	start_nng(sock, &ipc_thr);
 	nng_mtx_alloc(&http_mtx);
-	start_http("http://0.0.0.0:19999");
+	start_http("http://0.0.0.0:9999");
+	preview_buf.resize(1024 * 1024);
 
 	while (1) {
 		sleep(1); // TODO
